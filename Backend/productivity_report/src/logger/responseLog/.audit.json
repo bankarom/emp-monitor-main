@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 10
+    },
+    "auditLog": "D:\\EMPMonitor\\EmpOpenSource\\Backend\\productivity_report\\src\\logger\\responseLog/.audit.json",
+    "files": [
+        {
+            "date": 1774266094112,
+            "name": "D:\\EMPMonitor\\EmpOpenSource\\Backend\\productivity_report\\src\\logger\\responseLog\\2026-03-23-response.log",
+            "hash": "d2a7f8bc9b099b7ed78e606650b85006"
+        }
+    ],
+    "hashType": "md5"
+}
