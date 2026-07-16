@@ -1,72 +1,42 @@
 const fs = require('fs');
 const path = require('path');
 
-const logDir = path.join(__dirname, '../../logs');
-const logFile = path.join(logDir, 'agent.log');
+// FORCE logs to C:\empmonitor-data
+const logPath = 'C:\\empmonitor-data\\logs';
 
-// Ensure log directory exists
-if (!fs.existsSync(logDir)) {
-  fs.mkdirSync(logDir, { recursive: true });
-}
-
-const LOG_LEVELS = {
-  debug: 0,
-  info: 1,
-  warn: 2,
-  error: 3
-};
-
-let currentLogLevel = LOG_LEVELS.info;
-
-function setLogLevel(level) {
-  if (LOG_LEVELS[level] !== undefined) {
-    currentLogLevel = LOG_LEVELS[level];
-  }
-}
-
-function formatMessage(level, message) {
-  const timestamp = new Date().toISOString();
-  return `[${timestamp}] [${level.toUpperCase()}] ${message}\n`;
-}
-
-function writeLog(level, message) {
-  if (LOG_LEVELS[level] < currentLogLevel) {
-    return;
-  }
-
-  const formattedMessage = formatMessage(level, message);
-  
-  // Write to file
-  fs.appendFile(logFile, formattedMessage, (err) => {
-    if (err) {
-      console.error('Failed to write to log file:', err);
+// Create log directory
+if (!fs.existsSync(logPath)) {
+    try {
+        fs.mkdirSync(logPath, { recursive: true });
+    } catch (err) {
+        console.error('Failed to create log directory:', err);
     }
-  });
-
-  // Also log to console
-  console.log(formattedMessage.trim());
 }
 
-function debug(message) {
-  writeLog('debug', message);
+class Logger {
+    constructor(name = 'App') {
+        this.name = name;
+        this.logFile = path.join(logPath, `${name}.log`);
+    }
+
+    log(message) {
+        const entry = `[${new Date().toISOString()}] [${this.name}] ${message}\n`;
+        console.log(entry.trim());
+        this.writeToFile(entry);
+    }
+
+    info(message) { this.log(`INFO: ${message}`); }
+    error(message) { this.log(`ERROR: ${message}`); }
+    warn(message) { this.log(`WARN: ${message}`); }
+    debug(message) { this.log(`DEBUG: ${message}`); }
+
+    writeToFile(entry) {
+        try {
+            fs.appendFileSync(this.logFile, entry);
+        } catch (err) {
+            // Silent fail - don't crash the app
+        }
+    }
 }
 
-function info(message) {
-  writeLog('info', message);
-}
-
-function warn(message) {
-  writeLog('warn', message);
-}
-
-function error(message) {
-  writeLog('error', message);
-}
-
-module.exports = {
-  setLogLevel,
-  debug,
-  info,
-  warn,
-  error
-};
+module.exports = { Logger };

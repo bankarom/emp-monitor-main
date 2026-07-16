@@ -1,87 +1,45 @@
 const Store = require('electron-store');
 const path = require('path');
+const fs = require('fs');
 
-// Initialize electron-store
-const store = new Store({
-  name: 'emp-monitor-agent',
-  cwd: path.join(__dirname, '../../')
-});
+// THIS IS THE FIX - using a path WITHOUT spaces!
+const customDataPath = 'C:\\empmonitor-data';
 
-// Save JWT token
-function saveToken(token) {
-  store.set('auth.token', token);
+// Create the directory if it doesn't exist
+if (!fs.existsSync(customDataPath)) {
+    fs.mkdirSync(customDataPath, { recursive: true });
 }
 
-// Get JWT token
-function getToken() {
-  return store.get('auth.token');
+// Force electron-store to use our custom path
+process.env.ELECTRON_STORE_PATH = customDataPath;
+
+class Storage {
+    constructor() {
+        try {
+            this.store = new Store({
+                name: 'empmonitor',
+                cwd: customDataPath
+            });
+            console.log('✅ Storage using:', customDataPath);
+        } catch (error) {
+            console.error('Storage error:', error);
+            this.store = new Store({ name: 'empmonitor' });
+        }
+    }
+
+    get(key) { return this.store.get(key); }
+    set(key, value) { this.store.set(key, value); }
+    delete(key) { this.store.delete(key); }
+    clear() { this.store.clear(); }
+    getToken() { return this.store.get('token'); }
+    setToken(token) { this.store.set('token', token); }
+    clearToken() { this.store.delete('token'); }
+    getEmployeeId() { return this.store.get('employeeId'); }
+    setEmployeeId(id) { this.store.set('employeeId', id); }
+    getTrackingState() { return this.store.get('trackingState', false); }
+    setTrackingState(state) { this.store.set('trackingState', state); }
+    getEmployee() { return this.store.get('employee'); }
+    setEmployee(data) { this.store.set('employee', data); }
 }
 
-// Clear token (logout)
-function clearToken() {
-  store.delete('auth.token');
-}
-
-// Save user info
-function saveUserInfo(user) {
-  store.set('auth.user', user);
-}
-
-// Get user info
-function getUserInfo() {
-  return store.get('auth.user');
-}
-
-// Save API URLs (for production)
-function saveApiUrls(desktopUrl, storeLogsUrl) {
-  store.set('api.desktopUrl', desktopUrl);
-  store.set('api.storeLogsUrl', storeLogsUrl);
-}
-
-// Get API URLs
-function getApiUrls() {
-  return {
-    desktopUrl: store.get('api.desktopUrl'),
-    storeLogsUrl: store.get('api.storeLogsUrl')
-  };
-}
-
-// Save tracking state
-function setTrackingState(isTracking) {
-  store.set('tracking.isActive', isTracking);
-}
-
-// Get tracking state
-function getTrackingState() {
-  return store.get('tracking.isActive', false);
-}
-
-// Save last upload time
-function setLastUploadTime(timestamp) {
-  store.set('tracking.lastUpload', timestamp);
-}
-
-// Get last upload time
-function getLastUploadTime() {
-  return store.get('tracking.lastUpload', 0);
-}
-
-// Clear all data (for logout/uninstall)
-function clearAllData() {
-  store.clear();
-}
-
-module.exports = {
-  saveToken,
-  getToken,
-  clearToken,
-  saveUserInfo,
-  getUserInfo,
-  saveApiUrls,
-  getApiUrls,
-  setTrackingState,
-  getTrackingState,
-  setLastUploadTime,
-  getLastUploadTime,
-  clearAllData
-};
+module.exports = { Storage };

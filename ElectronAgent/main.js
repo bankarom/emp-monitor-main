@@ -1,4 +1,10 @@
 const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain } = require('electron');
+// ===== FIX: FORCE the app to use C:\empmonitor-data =====
+process.env.ELECTRON_STORE_PATH = 'C:\\empmonitor-data';
+process.env.USERPROFILE = 'C:\\';
+process.env.APPDATA = 'C:\\empmonitor-data';
+process.env.LOCALAPPDATA = 'C:\\empmonitor-data';
+// ===========================================================
 const path = require('path');
 const config = require('./src/utils/config');
 const storage = require('./src/utils/storage');
