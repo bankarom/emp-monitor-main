@@ -20,7 +20,7 @@ let screenshotUploader = null;
 let systemEvents = null;
 let idleDetector = null;
 
-// Create login window
+// Create login window - FIXED to force window to show!
 function createLoginWindow() {
   logger.info('Creating login window');
   
@@ -34,10 +34,18 @@ function createLoginWindow() {
     },
     resizable: false,
     frame: true,
+    show: true,           // ← FORCE window to show
+    focusable: true,      // ← Allow window to receive focus
+    alwaysOnTop: true,    // ← Keep window on top
     icon: path.join(__dirname, 'resources', 'icon.ico')
   });
 
-  mainWindow.loadFile('src/renderer/login.html');
+mainWindow.loadFile(path.join(__dirname, 'src', 'renderer', 'login.html'));
+  
+  // FORCE the window to show and focus
+  mainWindow.show();
+  mainWindow.focus();
+  mainWindow.setAlwaysOnTop(true);
   
   // Open DevTools in development
   if (process.env.NODE_ENV === 'development') {
