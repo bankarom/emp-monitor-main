@@ -142,7 +142,7 @@ const getTodayActivitySnapShot = async (timezone = "Asia/Kolkata") => {
 const formatSecondsToHMS = (value) => {
     const n = Number(value);
     if (!Number.isFinite(n) || n < 0) return "00:00:00 hrs";
-    const total = Math.floor(n);
+    const total = Math.round(n);
     const h = Math.floor(total / 3600);
     const m = Math.floor((total % 3600) / 60);
     const s = total % 60;

@@ -15,11 +15,7 @@ if (!fs.existsSync(customDataPath)) {
     }
 }
 
-// OVERRIDE the default path
-process.env.ELECTRON_STORE_PATH = customDataPath;
-process.env.USERPROFILE = 'C:\\';
-process.env.APPDATA = customDataPath;
-process.env.LOCALAPPDATA = customDataPath;
+
 
 class Storage {
     constructor() {
@@ -47,6 +43,7 @@ class Storage {
     clear() { this.store.clear(); }
     getToken() { return this.store.get('token'); }
     setToken(token) { this.store.set('token', token); }
+    saveToken(token) { this.store.set('token', token); }
     clearToken() { this.store.delete('token'); }
     getEmployeeId() { return this.store.get('employeeId'); }
     setEmployeeId(id) { this.store.set('employeeId', id); }
@@ -54,6 +51,18 @@ class Storage {
     setTrackingState(state) { this.store.set('trackingState', state); }
     getEmployee() { return this.store.get('employee'); }
     setEmployee(data) { this.store.set('employee', data); }
+    getUserInfo() { return this.store.get('employee'); }
+    saveUserInfo(info) { this.store.set('employee', info); }
+    getApiUrls() {
+        return {
+            desktopUrl: this.store.get('desktopApiUrl'),
+            storeLogsUrl: this.store.get('storeLogsApiUrl')
+        };
+    }
+    saveApiUrls(desktopUrl, storeLogsUrl) {
+        this.store.set('desktopApiUrl', desktopUrl);
+        this.store.set('storeLogsApiUrl', storeLogsUrl);
+    }
 }
 
 module.exports = { Storage };

@@ -547,7 +547,7 @@ class Controller {
                 prReport['non_productive_duration'] += status == 2 ? idle : 0;
                 prReport['neutral_duration'] += status == 0 ? idle : 0;
 
-                const oldtaskIndex = prReport.tasks.findIndex(task => prReport.tasks[0].task_id === activity.task_id);
+                const oldtaskIndex = prReport.tasks.findIndex(task => task.task_id.toString() === activity.task_id.toString());
                 if (oldtaskIndex >= 0) {
                     prReport.tasks[oldtaskIndex].pro += status == 1 ? idle : 0;
                     prReport.tasks[oldtaskIndex].non += status == 2 ? idle : 0;
@@ -3623,7 +3623,7 @@ const alterActivityTC = async (req, res, request) => {
             prReport['non_productive_duration'] += status == 2 ? idle : 0;
             prReport['neutral_duration'] += status == 0 ? idle : 0;
 
-            const oldtaskIndex = prReport.tasks.findIndex(task => prReport.tasks[0].task_id === activity.task_id);
+            const oldtaskIndex = prReport.tasks.findIndex(task => task.task_id.toString() === activity.task_id.toString());
             if (oldtaskIndex >= 0) {
                 prReport.tasks[oldtaskIndex].pro += status == 1 ? idle : 0;
                 prReport.tasks[oldtaskIndex].non += status == 2 ? idle : 0;

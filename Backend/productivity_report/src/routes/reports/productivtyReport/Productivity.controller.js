@@ -221,7 +221,7 @@ class ProductivtyController {
             const { location_id, department_id, id: attendance_id, start_time, end_time } = attendanceData;
             // logged_duration calculation
             const login = moment(start_time);
-            const logout = moment(end_time);
+            const logout = moment(systemTimeUtc);
             const logged_duration = logout.diff(login, 'seconds');
 
             const prReport = {

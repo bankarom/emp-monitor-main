@@ -113,7 +113,45 @@ ConvertTo-Json
     const lockEvent = this.detectScreenLockEvents();
     if (lockEvent) events.push(lockEvent);
     
+    const clipboardEvent = this.detectClipboardEvents();
+    if (clipboardEvent) events.push(clipboardEvent);
+    
     return events;
+  }
+
+  // Detect clipboard / file copy events
+  detectClipboardEvents() {
+    try {
+      const { clipboard } = require('electron');
+      // Read formats
+      const formats = clipboard.availableFormats();
+      if (formats.length > 0) {
+        let content = '';
+        if (formats.includes('text/plain')) {
+          content = clipboard.readText().substring(0, 50); // only log first 50 chars for DLP
+        }
+        
+        // This is a basic heuristic for DLP, track if they copied files or large text
+        const isFile = formats.includes('FileName') || formats.includes('FileNameW');
+        
+        if (this.lastClipboardContent !== content || this.lastClipboardWasFile !== isFile) {
+          this.lastClipboardContent = content;
+          this.lastClipboardWasFile = isFile;
+          
+          if (content || isFile) {
+            logger.debug('Clipboard/Copy event detected');
+            return {
+              type: isFile ? 'FILE_COPY' : 'CLIPBOARD_COPY',
+              data: isFile ? 'User copied file(s) to clipboard' : `Copied text: ${content}...`,
+              timestamp: new Date().toISOString()
+            };
+          }
+        }
+      }
+    } catch (err) {
+      // Ignore clipboard read errors
+    }
+    return null;
   }
 
   // Upload system events

@@ -159,6 +159,13 @@ const Dashboard = () => {
 
   useEffect(() => {
     loadDashboard();
+    
+    // Auto-refresh the dashboard data every 15 seconds for a "live" feel
+    const intervalId = setInterval(() => {
+      loadDashboard();
+    }, 15000);
+    
+    return () => clearInterval(intervalId);
   }, [loadDashboard]);
 
   // Refetch productive employees whenever productive filters change

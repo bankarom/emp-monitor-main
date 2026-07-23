@@ -1,18 +1,47 @@
-const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain } = require('electron');
-// ===== FIX: FORCE the app to use C:\empmonitor-data =====
-process.env.ELECTRON_STORE_PATH = 'C:\\empmonitor-data';
-process.env.USERPROFILE = 'C:\\';
-process.env.APPDATA = 'C:\\empmonitor-data';
-process.env.LOCALAPPDATA = 'C:\\empmonitor-data';
-// ===========================================================
-const path = require('path');
-const config = require('./src/utils/config');
-const storage = require('./src/utils/storage');
-const logger = require('./src/utils/logger');
+console.log("===== MAIN.JS STARTED =====");
+const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain } = require('electron'); 
+console.log("Electron version:", process.versions.electron);
 
+app.on('ready', () => {
+    console.log("EVENT: ready");
+});
+
+app.on('will-finish-launching', () => {
+    console.log("EVENT: will-finish-launching");
+});
+
+app.on('window-all-closed', () => {
+    console.log("EVENT: window-all-closed");
+});
+
+app.on('quit', () => {
+    console.log("EVENT: quit");
+});
+
+app.on('before-quit', () => {
+    console.log("EVENT: before-quit");
+});
+// NOTE: Do NOT override APPDATA/LOCALAPPDATA/USERPROFILE here.
+// Electron/Chromium uses these env vars internally during initialization.
+// Overriding them before app.whenReady() causes a native EXCEPTION_BREAKPOINT crash.
+// The electron-store 'cwd' option in storage.js handles custom storage paths safely.
+const path = require('path');
+console.log("1 - path loaded");
+
+const config = require('./src/utils/config');
+console.log("2 - config loaded");
+
+const { Storage } = require('./src/utils/storage');
+console.log("3 - storage module loaded");
+
+const { Logger } = require('./src/utils/logger');
+const logger = new Logger('Main');
+console.log("4 - logger instantiated");
 // Global references
+let storage = null;
 let mainWindow = null;
 let tray = null;
+let contextMenu = null;
 let activityTracker = null;
 let screenshotCapture = null;
 let activityUploader = null;
@@ -23,6 +52,7 @@ let idleDetector = null;
 // Create login window - FIXED to force window to show!
 function createLoginWindow() {
   logger.info('Creating login window');
+  console.log("A - Creating BrowserWindow");
   
   mainWindow = new BrowserWindow({
     width: 400,
@@ -39,11 +69,14 @@ function createLoginWindow() {
     alwaysOnTop: true,    // ← Keep window on top
     icon: path.join(__dirname, 'resources', 'icon.ico')
   });
+  console.log("B - About to load login.html");
 
 mainWindow.loadFile(path.join(__dirname, 'src', 'renderer', 'login.html'));
+console.log("C - login.html loaded");
   
   // FORCE the window to show and focus
   mainWindow.show();
+  console.log("D - Window shown");
   mainWindow.focus();
   mainWindow.setAlwaysOnTop(true);
   
@@ -62,7 +95,7 @@ mainWindow.loadFile(path.join(__dirname, 'src', 'renderer', 'login.html'));
 function createTray() {
   logger.info('Creating system tray');
   
-  const iconPath = path.join(__dirname, 'resources', 'tray-icon.ico');
+  const iconPath = path.join(__dirname, 'resources', 'icon.ico');
   let icon;
   
   try {
@@ -78,7 +111,7 @@ function createTray() {
   
   tray = new Tray(icon);
   
-  const contextMenu = Menu.buildFromTemplate([
+  contextMenu = Menu.buildFromTemplate([
     { 
       label: 'Online', 
       type: 'normal', 
@@ -119,9 +152,9 @@ function createTray() {
 
 // Update tray status
 function updateTrayStatus(isOnline) {
-  if (!tray) return;
+  if (!tray || !contextMenu) return;
   
-  const menu = tray.getContextMenu();
+  const menu = contextMenu;
   const statusItem = menu.getMenuItemById('status');
   const stopItem = menu.getMenuItemById('stop');
   const startItem = menu.getMenuItemById('start');
@@ -145,7 +178,7 @@ function updateTrayStatus(isOnline) {
 // Start tracking
 function startTracking() {
   const token = storage.getToken();
-  const userInfo = storage.getUserInfo();
+  const userInfo = storage.getEmployee();
   
   if (!token) {
     logger.warn('No token found, showing login window');
@@ -179,6 +212,8 @@ function startTracking() {
     idleDetector.start();
 
     // Start uploaders
+    activityUploader.setActivityTracker(activityTracker);
+    screenshotUploader.setScreenshotCapture(screenshotCapture);
     activityUploader.start();
     screenshotUploader.start();
 
@@ -238,7 +273,7 @@ function logout() {
   
   stopTracking();
   storage.clearToken();
-  storage.clearAllData();
+  storage.clear();
   
   if (tray) {
     tray.destroy();
@@ -266,19 +301,33 @@ ipcMain.on('login-failed', (event, error) => {
 
 // App ready
 app.whenReady().then(() => {
-  logger.info('Application ready');
-  
-  const token = storage.getToken();
-  const trackingState = storage.getTrackingState();
-  
-  if (token && trackingState) {
-    // Auto-login and start tracking
-    createTray();
-    startTracking();
-  } else {
-    // Show login window
-    createLoginWindow();
-  }
+
+    console.log("5 - APP READY");
+
+    // Instantiate Storage AFTER app is ready
+    // (electron-store internally calls app.getPath('userData') which requires ready state)
+    try {
+        storage = new Storage();
+        console.log("5.5 - storage instantiated");
+    } catch (err) {
+        console.error("ERROR instantiating Storage:", err);
+    }
+
+    try {
+
+        console.log("6 - Before createLoginWindow");
+
+        createLoginWindow();
+
+        console.log("7 - After createLoginWindow");
+
+    } catch (err) {
+
+        console.error("ERROR INSIDE createLoginWindow");
+        console.error(err);
+
+    }
+
 });
 
 // Quit when all windows closed (except on macOS)

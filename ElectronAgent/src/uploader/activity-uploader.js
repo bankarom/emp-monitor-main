@@ -34,11 +34,11 @@ class ActivityUploader {
         }
       );
 
-      if (response.data && response.data.success) {
+      if (response.data && (response.data.success || response.data.code === 200 || response.data.status === 'success' || response.data.message === 'Data saved')) {
         logger.info('Activity data uploaded successfully');
         return true;
       } else {
-        logger.warn('Activity upload failed:', response.data?.message);
+        logger.warn('Activity upload failed:', response.data?.message || response.data);
         return false;
       }
     } catch (err) {
@@ -81,7 +81,7 @@ class ActivityUploader {
 
       const activityData = this.activityTracker.getActivityData();
       if (activityData && activityData.appUsage && activityData.appUsage.length > 0) {
-        await this.uploadWithRetry(activityData);
+        await this.uploadWithRetry({ sign: activityData.dataId || new Date().toISOString(), data: [activityData] });
       } else {
         logger.debug('No activity data to upload');
       }

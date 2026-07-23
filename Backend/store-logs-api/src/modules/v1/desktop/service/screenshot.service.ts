@@ -242,13 +242,13 @@ export class ScreenshotService {
     }
 
     async endRequest(statusCode: number, message: string, files: UploadDto[], error = null) {
-        if (files && files.length) {
-            for (const file of files) {
-                if(await checkPathExistence(file.filepath)) {
-                    await deleteFileFromLocal(file);
-                }
-            }
-        }
+        // if (files && files.length) {
+        //     for (const file of files) {
+        //         if(await checkPathExistence(file.filepath)) {
+        //             await deleteFileFromLocal(file);
+        //         }
+        //     }
+        // }
         const uploadedFilenames = files.filter((file) => file.uploaded).map((file) => file.filename);
 
         return this.responseHelperService.sendResponse(statusCode, message, error, uploadedFilenames);
@@ -298,29 +298,13 @@ export class ScreenshotService {
             // saving files locally
             try {
                 await saveFiles(files, userData.email, localyFolders.screenshots, data);
+                // Mark as uploaded to bypass cloud
+                for (const file of files) {
+                    file.uploaded = true;
+                }
+                return this.endRequest(200, 'Successfully screenshot uploaded locally', files);
             } catch (error) {
                 return this.endRequest(500, 'Failed to dump files to disk', files, error);
-            }
-            // try {
-            //     await imageFilesValidate(files);
-            // } catch (error) {
-            //     return this.endRequest(400, error.message, files, error);
-            // }
-            // first upload attempt
-            const ProviderClass = this.providers.get(providerCode);
-            files = await this.uploadToCloud(ProviderClass, storage, files, userData.email, providerCode, userData);
-    
-            // if there are not uploaded files left => second attempt after timeout
-            if (this.hasNonUploadedFiles(files)) {
-                const retryTimeoutSeconds = Number(process.env.RETRY_TIMEOUT_SECONDS) || 5;
-                await new Promise((resolve: any) => setTimeout(() => resolve(), retryTimeoutSeconds * 1000));
-                await this.uploadToCloud(ProviderClass, storage, files, userData.email, providerCode, userData);
-            }
-    
-            if (this.hasNonUploadedFiles(files)) {
-                return this.endRequest(400, 'Failed screenshots uploading', files);
-            } else {
-                return this.endRequest(200, 'Successfully screenshot uploaded', files);
             }
         } catch (error) {
             return this.endRequest(400, 'Failed screenshots uploading', files);

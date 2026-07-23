@@ -53,15 +53,21 @@ class PasswordEncoderDecoder {
     }
 
     decryptText(text, key) {
-        let textParts = text.split(':')
-        let iv = Buffer.from(textParts.shift(), 'hex')
-        let encryptedText = Buffer.from(textParts.join(':'), 'hex')
-        let decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(key), iv)
-        let decrypted = decipher.update(encryptedText)
+        try {
+            if (!text || typeof text !== 'string') return text;
+            let textParts = text.split(':');
+            if (textParts.length < 2) return text; // Not in IV:encrypted format
+            let iv = Buffer.from(textParts.shift(), 'hex');
+            let encryptedText = Buffer.from(textParts.join(':'), 'hex');
+            let decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(key), iv);
+            let decrypted = decipher.update(encryptedText);
 
-        decrypted = Buffer.concat([decrypted, decipher.final()])
-        let final = decrypted.toString()
-        return final;
+            decrypted = Buffer.concat([decrypted, decipher.final()]);
+            return decrypted.toString();
+        } catch (error) {
+            console.error('Decryption error:', error.message);
+            return text;
+        }
     }
 
     /**

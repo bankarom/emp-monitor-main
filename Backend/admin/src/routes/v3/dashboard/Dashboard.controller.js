@@ -107,6 +107,7 @@ class DashboardController {
                 error: null
             });
         } catch (err) {
+            console.error("GET EMPLOYEES ERROR:", err);
             next(err);
         }
     }
@@ -149,8 +150,7 @@ class DashboardController {
             const {
                 date
             } = await DashboardValidator.getAbsentEmployee().validateAsync(req.query);
-            const manager_id = req.decoded.employee_id || null;
-            const to_assigned_role = req.decoded.role_id || null;
+
             let [registeredEmp, absentEmp, onlineEmp, offlineEmp, idealEmp] = await Promise.all([
                 DashboardModel.getRegisteredEmp(organization_id, manager_id, to_assigned_role),
                 //DashboardModel.getSuspendedEmp(organization_id, manager_id, to_assigned_role),
@@ -651,7 +651,7 @@ class DashboardController {
             //     ];
             // }
 
-            let ipMaskingOrgId = process.env.IP_MASKING_ORG_ID.split(",");
+            let ipMaskingOrgId = (process.env.IP_MASKING_ORG_ID || "").split(",");
             if (ipMaskingOrgId.includes(String(organization_id))){
                 topAppWebs = topAppWebs.map(x => {
                     x.name = maskingIP(x.name);
@@ -1135,8 +1135,9 @@ class DashboardController {
             
             return res.json({ code: 200, data: webApps, error: null, message: translate(transferMessages, "1", language) });
 
-        } catch (err) {
-            next(err)
+        } catch (error) {
+            console.error("GET EMPLOYEES ERROR:", error);
+            next(error);
         }
 
     }

@@ -35,6 +35,14 @@ timeout /t 2 > nul
 echo Starting Frontend...
 start "EmpMonitor - Frontend" cmd /k "cd Frontend && npm run dev"
 
+echo Starting Productivity Report API...
+start "EmpMonitor - Productivity API" cmd /k "cd Backend\productivity_report && npm run start:dev"
+
+timeout /t 2 > nul
+
+echo Starting Cronjobs API...
+start "EmpMonitor - Cronjobs API" cmd /k "cd Backend\cronjobs && npm run start:dev"
+
 echo.
 echo Waiting 15 seconds for services to start...
 timeout /t 15 > nul

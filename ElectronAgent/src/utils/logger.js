@@ -19,16 +19,17 @@ class Logger {
         this.logFile = path.join(logPath, `${name}.log`);
     }
 
-    log(message) {
+    log(...args) {
+        const message = args.map(arg => typeof arg === 'object' ? (arg instanceof Error ? arg.stack : JSON.stringify(arg)) : String(arg)).join(' ');
         const entry = `[${new Date().toISOString()}] [${this.name}] ${message}\n`;
         console.log(entry.trim());
         this.writeToFile(entry);
     }
 
-    info(message) { this.log(`INFO: ${message}`); }
-    error(message) { this.log(`ERROR: ${message}`); }
-    warn(message) { this.log(`WARN: ${message}`); }
-    debug(message) { this.log(`DEBUG: ${message}`); }
+    info(...args) { this.log('INFO:', ...args); }
+    error(...args) { this.log('ERROR:', ...args); }
+    warn(...args) { this.log('WARN:', ...args); }
+    debug(...args) { this.log('DEBUG:', ...args); }
 
     writeToFile(entry) {
         try {
@@ -38,5 +39,6 @@ class Logger {
         }
     }
 }
-
-module.exports = { Logger };
+const defaultLogger = new Logger('Agent');
+defaultLogger.Logger = Logger;
+module.exports = defaultLogger;

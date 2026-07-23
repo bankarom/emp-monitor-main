@@ -23,24 +23,27 @@ class IdleDetector {
 
   // Check if user is idle
   checkIdle() {
-    const idleTime = Date.now() - this.lastActivityTime;
-    const isNowIdle = idleTime > this.config.IDLE_THRESHOLD;
+    const { powerMonitor } = require('electron');
+    // getSystemIdleTime returns time in seconds. We multiply by 1000 to compare with IDLE_THRESHOLD which is in ms.
+    const idleTimeSeconds = powerMonitor.getSystemIdleTime();
+    const idleTimeMs = idleTimeSeconds * 1000;
+    const isNowIdle = idleTimeMs > this.config.IDLE_THRESHOLD;
     
     if (isNowIdle && !this.isIdle) {
       this.isIdle = true;
-      logger.info(`User is idle for ${Math.floor(idleTime / 1000)} seconds`);
-      this.sendIdleEvent(true);
+      logger.info(`User is idle for ${idleTimeSeconds} seconds`);
+      this.sendIdleEvent(true, idleTimeMs);
     } else if (!isNowIdle && this.isIdle) {
       this.isIdle = false;
       logger.info('User is no longer idle');
-      this.sendIdleEvent(false);
+      this.sendIdleEvent(false, idleTimeMs);
     }
     
     return this.isIdle;
   }
 
   // Send idle event to server
-  async sendIdleEvent(isIdle) {
+  async sendIdleEvent(isIdle, idleDurationMs) {
     try {
       const axios = require('axios');
       
@@ -50,7 +53,7 @@ class IdleDetector {
         log_data: {
           type: 'IDLE',
           isIdle: isIdle,
-          idleDuration: Date.now() - this.lastActivityTime,
+          idleDuration: idleDurationMs || 0,
           timestamp: new Date().toISOString()
         }
       };

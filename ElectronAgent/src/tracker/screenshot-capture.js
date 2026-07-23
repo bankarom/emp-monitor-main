@@ -13,7 +13,8 @@ class ScreenshotCapture {
     
     // Screenshot buffer
     this.screenshotBuffer = [];
-    this.tempDir = path.join(__dirname, '../../temp/screenshots');
+    const app = require('electron').app || require('@electron/remote').app;
+    this.tempDir = path.join(app.getPath('userData'), 'temp', 'screenshots');
     
     // Ensure temp directory exists
     if (!fs.existsSync(this.tempDir)) {
@@ -39,16 +40,21 @@ class ScreenshotCapture {
       const screenshots = [];
       
       for (const source of sources) {
-        if (source.name.includes('Screen') || source.name.includes('Display')) {
+        if (source.name.toLowerCase().includes('screen') || source.name.toLowerCase().includes('display')) {
           const timestamp = new Date().toISOString();
-          const filename = `screenshot_${Date.now()}_${source.id}.png`;
+          const filename = `screenshot_${Date.now()}_${source.id}.jpg`;
           const filepath = path.join(this.tempDir, filename);
           
-          // Save screenshot to temp file
-          fs.writeFileSync(filepath, source.thumbnail.toPNG());
+          // Use toJPEG instead of toPNG for massive performance and file size improvements
+          // toPNG() is synchronous and blocks the event loop, causing CPU spikes
+          const quality = this.config.SCREENSHOT_QUALITY ? Math.round(this.config.SCREENSHOT_QUALITY * 100) : 80;
+          const imageBuffer = source.thumbnail.toJPEG(quality);
+          
+          // Save screenshot asynchronously to prevent blocking the main thread
+          await fs.promises.writeFile(filepath, imageBuffer);
           
           // Get file size
-          const stats = fs.statSync(filepath);
+          const stats = await fs.promises.stat(filepath);
           const fileSizeKB = stats.size / 1024;
           
           screenshots.push({

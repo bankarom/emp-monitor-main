@@ -1,6 +1,8 @@
 const moment = require('moment');
 const _ = require('underscore');
 const async = require('async');
+const fs = require('fs');
+const path = require('path');
 const ScreenshotModel = require('./screenshot.model');
 const ScreenshotValidation = require('./screenshot.validation');
 const sendResponse = require('../../../utils/myService').sendResponse;
@@ -35,10 +37,53 @@ class ScreenshotController {
             if (user_data.length === 0) return sendResponse(res, 400, null, 'User not found.', null);
 
             let credsData = await ScreenshotModel.getStorageDetail(organization_id);
-            if (credsData.length === 0) return sendResponse(res, 400, null, 'Not Found Active Storage !', null);
+            // Default to LOCAL if no storage config is found
+            let short_code = credsData.length > 0 ? credsData[0].short_code : 'LOCAL';
+            let creds = credsData.length > 0 ? JSON.parse(credsData[0].creds || '{}') : {};
 
-            let creds = JSON.parse(credsData[0].creds);
-            if (credsData[0].short_code == 'GD') {
+            if (short_code == 'LOCAL') {
+                const uploadPath = path.join(__dirname, '../../../../../../store-logs-api/public/uploads/screenshots', user_data[0].email);
+                if (!fs.existsSync(uploadPath)) return sendResponse(res, 400, null, 'No Screenshot Present For This User With Selected Date.', null);
+
+                let files = fs.readdirSync(uploadPath);
+                // The filename from agent contains Date.now() timestamp
+                async.forEach(total_hour, (h, callback) => {
+                    let finalData = [];
+                    // Filter files for this specific hour (using file modified time or name if it contains date)
+                    let hourFiles = files.filter(f => {
+                        let stat = fs.statSync(path.join(uploadPath, f));
+                        let fileMom = moment(stat.mtime);
+                        return fileMom.format('YYYY-MM-DD') === date && fileMom.format('HH') === h;
+                    });
+
+                    async.forEach(hourFiles, (file, cb) => {
+                        let stat = fs.statSync(path.join(uploadPath, file));
+                        let fileUrl = `${process.env.STORE_LOGS_API_URL || 'http://localhost:3001'}/screenshots/${user_data[0].email}/${file}`;
+                        finalData.push({
+                            id: file,
+                            actual: file,
+                            name: Comman.toTimezoneDateofSS(file, user_data[0].timezone),
+                            link: fileUrl,
+                            viewLink: fileUrl,
+                            thumbnailLink: fileUrl,
+                            created_at: stat.mtime,
+                            updated_at: stat.mtime
+                        });
+                        cb();
+                    }, () => {
+                        var obj = {
+                            t: moment.tz(moment(h, 'HH'), user_data[0].timezone).format('HH'),
+                            actual_t: h,
+                            s: finalData, pageToken: null
+                        };
+                        result.push(obj);
+                        callback();
+                    });
+                }, () => {
+                    let r = _.sortBy(result, "t");
+                    return sendResponse(res, 200, { storage: 'LOCAL', name: user_data[0].name + ' ' + user_data[0].full_name, photo_path: user_data[0].photo_path, email: user_data[0].email, user_id: user_data[0].id, screenshot: r }, 'Screenshot data ', null);
+                });
+            } else if (short_code == 'GD') {
                 /**Get main EmpMonitor Folder Id */
                 const mainFolder = await CloudStorageService.getFolderByName('EmpMonitor', creds.client_id, creds.client_secret, creds.refresh_token);
                 if (mainFolder.length === 0) return sendResponse(res, 400, null, translate(genericErrorMessage, 'NO_SCREENSHOTS_FOR_USER_SELECTED_DATE', language), null);

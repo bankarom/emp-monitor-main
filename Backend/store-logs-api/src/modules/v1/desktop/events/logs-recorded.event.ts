@@ -64,7 +64,7 @@ export class DataLogEventHandler extends EventEmitter {
                 console.log(res.data.message)
             } catch (err) {
                 await this.FailedDataPushFun(params);
-                console.error("---------Error in updating activities stats--------");
+                console.error("---------Error in updating activities stats--------", err?.message);
             }
         }
     }
@@ -163,6 +163,9 @@ export class DataLogEventHandler extends EventEmitter {
 
     @On('data-receieved-for-logs')
     async updateToken(data: IActivityUsageData[], userData: IDecodedToken, ip: string): Promise<any> {
+        console.log("---- ENTERING updateToken ----");
+        console.log("data length:", data?.length);
+        console.log("userData id:", userData?.id, "adminId:", userData?.organization_id);
         // make session
         try {
             for (const item of data) {

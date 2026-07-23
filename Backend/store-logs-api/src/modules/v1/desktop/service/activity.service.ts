@@ -143,20 +143,28 @@ export class ActivityService {
                     };
                 });
             }
+            console.log("---- RECEIVED DATA: ----");
+            console.log(JSON.stringify(finalData.map(d => d.systemTimeUtc)));
             // neglect session if more than two days
             finalData = finalData.filter((item: IActivityUsageData) => {
                 const systemTime = moment(item.systemTimeUtc);
                 const currentTime = moment().utc();
                 return !(systemTime.diff(currentTime, 'days') > 2);
             });
+            console.log("FINAL DATA LENGTH AFTER FILTER:", finalData?.length);
+            if (finalData?.length) {
+                console.log("MODE:", JSON.stringify(finalData[0].mode));
+                console.log("APP USAGE:", JSON.stringify(finalData[0].appUsage));
+            }
 
             // Insert in mongo db with bulk insertion mongoose api
             try {
                 const result: any = await this.userActivityDataMongoModel.insert(finalData);
+                console.log("ABOUT TO EMIT data-receieved-for-logs WITH RESULT LENGTH:", result?.length);
                 this.emitter.emit('data-receieved-for-logs', result, userData, ip);
-                return this.responseHelperService.sendResponse(200, 'Data saved', null, { inserted: result.length });
+                return this.responseHelperService.sendResponse(200, 'Data saved', null, { inserted: result?.length || 0 });
             } catch (error) {
-                // this.logger.logger.error(`-------------${JSON.stringify(error)}`);
+                console.log("---- ERROR INSERTING TO MONGO ----", error);
                 return this.responseHelperService.sendResponse(400, 'Error in inserting data', error.message, null);
             }
         } catch (error) {

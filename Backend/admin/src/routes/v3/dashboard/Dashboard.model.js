@@ -130,8 +130,8 @@ class DashboardModel {
 
     //TODO: MERGE getOnlineEmp() and getOfflineEmp() into single function
     getOnlineEmp(organization_id, manager_id, date, to_assigned_role) {
-        const from_date = moment().utc().subtract(15, 'minutes').format('YYYY-MM-DD HH:mm:ss');
-        const to_date = moment().utc().format('YYYY-MM-DD HH:mm:ss');
+        const from_date = moment().subtract(15, 'minutes').format('YYYY-MM-DD HH:mm:ss');
+        const to_date = moment().format('YYYY-MM-DD HH:mm:ss');
         let query = `
             SELECT
                 e.id,
@@ -192,8 +192,8 @@ class DashboardModel {
         return mySql.query(query);
     }
     getOfflineEmp(organization_id, manager_id, date, to_assigned_role) {
-        const from_date = moment().utc().subtract(15, 'minutes').format('YYYY-MM-DD HH:mm:ss');
-        const to_date = moment().utc().format('YYYY-MM-DD HH:mm:ss');
+        const from_date = moment().subtract(15, 'minutes').format('YYYY-MM-DD HH:mm:ss');
+        const to_date = moment().format('YYYY-MM-DD HH:mm:ss');
 
         let query = `
             SELECT
@@ -896,8 +896,8 @@ class DashboardModel {
     }
 
     getIdealEmp(organization_id, date, manager_id, to_assigned_role) {
-        const from_date = moment().utc().subtract(25, 'minutes').format('YYYY-MM-DD HH:mm:ss');
-        const to_date = moment().utc().format('YYYY-MM-DD HH:mm:ss');
+        const from_date = moment().subtract(25, 'minutes').format('YYYY-MM-DD HH:mm:ss');
+        const to_date = moment().format('YYYY-MM-DD HH:mm:ss');
         let query = `
                 SELECT
                     e.id,ea.id AS attendance_id,

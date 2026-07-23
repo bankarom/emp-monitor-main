@@ -60,6 +60,11 @@ export class DesktopController {
       employee_id: Number(process.env.LOCAL_AGENT_EMPLOYEE_ID || 3),
       organization_id: Number(process.env.LOCAL_AGENT_ORGANIZATION_ID || 1),
       timezone: process.env.LOCAL_AGENT_TIMEZONE || 'Asia/Kolkata',
+      setting: {
+        trackingMode: 'flexible',
+        timesheetIdleTime: '00:05',
+        tracking: { fixed: null }
+      }
     };
 
     const token = `local-dev:${Buffer.from(JSON.stringify(userPayload)).toString('base64')}`;

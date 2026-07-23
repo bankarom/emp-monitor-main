@@ -288,7 +288,7 @@ class AuthModel {
                     VALUES (${organization_id},${storageData.type},${organization_id});
                 `);
 
-                await mySql.query(`created_by
+                await mySql.query(`
                     INSERT INTO ${this.organizationProvidersCredentialTable} (org_provider_id,creds)
                     VALUES (${organizationProviders.insertId},'${storageData.creds}');
                 `);

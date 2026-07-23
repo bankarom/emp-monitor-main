@@ -1,5 +1,6 @@
 const { execSync } = require('child_process');
 const logger = require('../utils/logger');
+const { uIOhook } = require('uiohook-napi');
 
 class ActivityTracker {
   constructor(config, token, userInfo) {
@@ -59,30 +60,22 @@ class ActivityTracker {
   // Get active window information
   getActiveWindow() {
     try {
-      const ps = `
-$code = @'
-using System; using System.Runtime.InteropServices; using System.Text;
-public class W { 
-  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
-  [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr h,StringBuilder s,int n);
-  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);
-}
-'@
-Add-Type -TypeDefinition $code
+      const psScript = `
+Add-Type -TypeDefinition "using System;using System.Runtime.InteropServices;using System.Text;public class W{[DllImport(""user32.dll"")]public static extern IntPtr GetForegroundWindow();[DllImport(""user32.dll"")]public static extern int GetWindowText(IntPtr h,StringBuilder s,int n);[DllImport(""user32.dll"")]public static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);}"
 $h=[W]::GetForegroundWindow()
 $s=New-Object System.Text.StringBuilder 512
 [W]::GetWindowText($h,$s,512)|Out-Null
-$pid=0;[W]::GetWindowThreadProcessId($h,[ref]$pid)|Out-Null
-$p=Get-Process -Id $pid -EA SilentlyContinue
+$procId=0;[W]::GetWindowThreadProcessId($h,[ref]$procId)|Out-Null
+$p=Get-Process -Id $procId -EA SilentlyContinue
 Write-Output "$($p.ProcessName)|||$($s.ToString())"
-      `.replace(/\n/g, ' ');
-      
-      const out = execSync(`powershell -NoProfile -NonInteractive -Command "${ps}"`, {
+`;
+      const b64 = Buffer.from(psScript, 'utf16le').toString('base64');
+      const out = execSync(`powershell -NoProfile -NonInteractive -EncodedCommand ${b64}`, {
         timeout: 5000,
         stdio: ['ignore', 'pipe', 'ignore']
       }).toString().trim();
       
-      const [proc, title] = out.split('|||');
+      let [proc, title] = out.split('|||');
       return { 
         proc: (proc || '').trim(), 
         title: (title || '').trim() 
@@ -120,26 +113,14 @@ Write-Output "$($p.ProcessName)|||$($s.ToString())"
     return null;
   }
 
-  // Track mouse activity (simplified - uses Windows hooks in production)
+  // Track mouse activity
   trackMouseActivity() {
-    // In a real implementation, you'd use Windows hooks via native module
-    // For now, we'll simulate with random activity for demonstration
-    // In production, use: node-mouse-hook or similar native module
-    
-    const clicks = Math.floor(Math.random() * 5);
-    const movements = Math.floor(Math.random() * 20);
-    
-    this.clicksCount += clicks;
-    this.movementsCount += movements;
+    // Handled via uIOhook events, nothing to do here per second
   }
 
-  // Track keyboard activity (simplified)
+  // Track keyboard activity
   trackKeyboardActivity() {
-    // In production, use Windows keyboard hooks
-    // For now, simulate with random activity
-    
-    const keys = Math.floor(Math.random() * 10);
-    this.keysCount += keys;
+    // Handled via uIOhook events, nothing to do here per second
   }
 
   // Update per-second activity arrays
@@ -245,6 +226,11 @@ Write-Output "$($p.ProcessName)|||$($s.ToString())"
           end: this.appUsageStart + duration,
           keystrokes: this.currentKeystrokes
         });
+        
+        // Reset for next interval so it doesn't overlap
+        this.appStartTime = Date.now();
+        this.appUsageStart = 0;
+        this.currentKeystrokes = '';
       }
     }
     
@@ -304,32 +290,47 @@ Write-Output "$($p.ProcessName)|||$($s.ToString())"
   }
 
   start() {
-    if (this.isRunning) {
-      logger.warn('Activity tracker already running');
-      return;
-    }
-
+    if (this.isRunning) return;
     this.isRunning = true;
-    logger.info('Starting activity tracker');
+    this.sessionStartTime = new Date();
     
-    // Sample activity every 4 seconds
+    logger.info('Activity tracker started');
+
+    // Setup uIOhook events
+    uIOhook.on('keydown', (e) => { this.keysCount++; });
+    uIOhook.on('mousedown', (e) => { this.clicksCount++; });
+    uIOhook.on('mousemove', (e) => { this.movementsCount++; });
+    uIOhook.start();
+    
+    // Start sampling interval
     this.interval = setInterval(() => {
       this.sampleActivity();
     }, this.config.ACTIVITY_SAMPLE_INTERVAL);
   }
 
+  // Stop tracking
   stop() {
-    if (!this.isRunning) {
-      return;
-    }
-
+    if (!this.isRunning) return;
     this.isRunning = false;
-    logger.info('Stopping activity tracker');
     
     if (this.interval) {
       clearInterval(this.interval);
       this.interval = null;
     }
+    
+    uIOhook.stop();
+    
+    // Finalize current app usage
+    if (this.currentApp) {
+      this.appUsage.push({
+        appName: this.currentApp.appName,
+        url: this.currentApp.url || null,
+        startTime: this.currentApp.startTime,
+        endTime: new Date().toISOString()
+      });
+    }
+    
+    logger.info('Activity tracker stopped');
   }
 }
 

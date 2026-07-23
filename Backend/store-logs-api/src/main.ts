@@ -6,6 +6,8 @@ if (!(util as any).isObject) {
 }
 
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { join } from 'path';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -17,7 +19,10 @@ import { json, urlencoded } from 'body-parser';
 import swaggerMiddleware from "./common/swagger.auth";
 
 async function bootstrap() {
-    const app = await NestFactory.create(AppModule);
+    const app = await NestFactory.create<NestExpressApplication>(AppModule);
+    
+    // Serve static files from public directory (e.g. for local screenshots)
+    app.useStaticAssets(join(__dirname, '..', 'public'));
 
     app.use(helmet(), compression());
     app.enableCors();

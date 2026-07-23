@@ -1,7 +1,20 @@
 const { ipcRenderer } = require('electron');
 const axios = require('axios');
-const storage = require('../utils/storage');
+const crypto = require('crypto');
+const { Storage } = require('../utils/storage');
+const storage = new Storage();
 const config = require('../utils/config');
+
+// Encrypt password using AES-256-CBC (must match backend's password.service.js)
+const CRYPTO_PASSWORD = 'EmpMonitorLocalDevSecretKey12345'; // Same key as backend .env CRYPTO_PASSWORD
+function encryptPassword(text) {
+  const IV_LENGTH = 16;
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(CRYPTO_PASSWORD), iv);
+  let encrypted = cipher.update(text);
+  encrypted = Buffer.concat([encrypted, cipher.final()]);
+  return iv.toString('hex') + ':' + encrypted.toString('hex');
+}
 
 // DOM elements
 const loginForm = document.getElementById('loginForm');
@@ -93,10 +106,11 @@ loginForm.addEventListener('submit', async (e) => {
   errorMessage.classList.remove('show');
 
   try {
-    // Attempt login
+    // Attempt login - password must be encrypted before sending
+    const encryptedPassword = encryptPassword(password);
     const response = await axios.post(`${desktopApiUrl}${config.LOGIN_ENDPOINT}`, {
       email,
-      password
+      password: encryptedPassword
     }, {
       headers: {
         'Content-Type': 'application/json'
@@ -106,8 +120,8 @@ loginForm.addEventListener('submit', async (e) => {
 
     if (response.data && response.data.success) {
       // Extract token and user data
-      const token = response.data.token || response.data.data?.token;
-      const user = response.data.user || response.data.data?.user || response.data.data;
+      const token = response.data.token || response.data.accessToken || response.data.data?.token;
+      const user = response.data.user || response.data.data?.user || response.data;
       
       if (!token) {
         throw new Error('No token received from server');

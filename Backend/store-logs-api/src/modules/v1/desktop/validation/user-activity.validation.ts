@@ -9,7 +9,7 @@ const appObjectSchema = joi.object({
     title: joi.string().required().trim().allow(null, ''),
     url: joi.string().uri().allow(null, '').required().trim(),
     keystrokes: joi.string().allow(null, '').required().trim(),
-}).required();
+}).unknown(true).required();
 const appArraySchema = joi.array().items(appObjectSchema).min(1).unique().required();
 
 
@@ -41,11 +41,11 @@ const sessionEachObjectSchema = joi.object({
         end: joi.number().integer().positive().allow(0),
     },
     appUsage: joi.alternatives().try(appObjectSchema, appArraySchema).required()
-});
+}).unknown(true);
 const sessionArraySchema = joi.array().items(sessionEachObjectSchema).min(1).unique().required();
 
 
 export const validateActivityDataSchema = joi.object({
     sign: joi.string().trim().required(),
     data: joi.alternatives().try(sessionEachObjectSchema, sessionArraySchema).required(),
-}).required();
+}).unknown(true).required();

@@ -9,5 +9,5 @@ echo  Employee login: http://localhost:5174/employee-login
 echo  Press Ctrl+C to stop
 echo ==========================================
 echo.
-npx vite --port 5174
+npx vite --port 5174 --host
 pause

@@ -7,7 +7,7 @@ const toSeconds = (value) => {
 };
 
 export const formatSecondsToHMS = (value) => {
-  const total = toSeconds(value);
+  const total = Math.round(Number(toSeconds(value)) || 0);
   const h = Math.floor(total / 3600);
   const m = Math.floor((total % 3600) / 60);
   const s = total % 60;
