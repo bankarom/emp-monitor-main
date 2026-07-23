@@ -21,27 +21,26 @@ app.on('quit', () => {
 app.on('before-quit', () => {
     console.log("EVENT: before-quit");
 });
-// NOTE: Do NOT override APPDATA/LOCALAPPDATA/USERPROFILE here.
-// Electron/Chromium uses these env vars internally during initialization.
-// Overriding them before app.whenReady() causes a native EXCEPTION_BREAKPOINT crash.
-// The electron-store 'cwd' option in storage.js handles custom storage paths safely.
+// ===== FIX: FORCE the app to use C:\empmonitor-data =====
+process.env.ELECTRON_STORE_PATH = 'C:\\empmonitor-data';
+process.env.USERPROFILE = 'C:\\';
+process.env.APPDATA = 'C:\\empmonitor-data';
+process.env.LOCALAPPDATA = 'C:\\empmonitor-data';
+// ===========================================================
 const path = require('path');
 console.log("1 - path loaded");
 
 const config = require('./src/utils/config');
 console.log("2 - config loaded");
 
-const { Storage } = require('./src/utils/storage');
-console.log("3 - storage module loaded");
+const storage = require('./src/utils/storage');
+console.log("3 - storage loaded");
 
-const { Logger } = require('./src/utils/logger');
-const logger = new Logger('Main');
-console.log("4 - logger instantiated");
+const logger = require('./src/utils/logger');
+console.log("4 - logger loaded");
 // Global references
-let storage = null;
 let mainWindow = null;
 let tray = null;
-let contextMenu = null;
 let activityTracker = null;
 let screenshotCapture = null;
 let activityUploader = null;
@@ -92,17 +91,15 @@ console.log("C - login.html loaded");
 }
 
 // Create system tray
-function createSystemTray() {
+function createTray() {
   logger.info('Creating system tray');
+  
+  const iconPath = path.join(__dirname, 'resources', 'tray-icon.ico');
   let icon;
+  
   try {
-    const isPackaged = __dirname.includes('app.asar');
-    const resourcesDir = isPackaged ? path.join(process.resourcesPath, 'resources') : path.join(__dirname, 'resources');
-    const iconPath = path.join(resourcesDir, 'icon.ico');
-    
-    if (fs.existsSync(iconPath)) {
-      icon = nativeImage.createFromPath(iconPath);
-    } else {
+    icon = nativeImage.createFromPath(iconPath);
+    if (icon.isEmpty()) {
       logger.warn('Tray icon not found, using default');
       icon = nativeImage.createEmpty();
     }
@@ -113,7 +110,7 @@ function createSystemTray() {
   
   tray = new Tray(icon);
   
-  contextMenu = Menu.buildFromTemplate([
+  const contextMenu = Menu.buildFromTemplate([
     { 
       label: 'Online', 
       type: 'normal', 
@@ -154,9 +151,9 @@ function createSystemTray() {
 
 // Update tray status
 function updateTrayStatus(isOnline) {
-  if (!tray || !contextMenu) return;
+  if (!tray) return;
   
-  const menu = contextMenu;
+  const menu = tray.getContextMenu();
   const statusItem = menu.getMenuItemById('status');
   const stopItem = menu.getMenuItemById('stop');
   const startItem = menu.getMenuItemById('start');
@@ -180,7 +177,7 @@ function updateTrayStatus(isOnline) {
 // Start tracking
 function startTracking() {
   const token = storage.getToken();
-  const userInfo = storage.getEmployee();
+  const userInfo = storage.getUserInfo();
   
   if (!token) {
     logger.warn('No token found, showing login window');
@@ -214,8 +211,6 @@ function startTracking() {
     idleDetector.start();
 
     // Start uploaders
-    activityUploader.setActivityTracker(activityTracker);
-    screenshotUploader.setScreenshotCapture(screenshotCapture);
     activityUploader.start();
     screenshotUploader.start();
 
@@ -270,25 +265,12 @@ function stopTracking() {
 }
 
 // Logout
-async function logout() {
+function logout() {
   logger.info('Logging out');
   
-  const token = storage.getToken();
-  if (token) {
-    try {
-      await fetch(`${config.DESKTOP_API_URL}/api/v1/user/log-out`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-        timeout: 5000
-      });
-      logger.info('Successfully logged out on backend');
-    } catch (err) {
-      logger.error('Error logging out on backend:', err.message);
-    }
-  }
-
   stopTracking();
   storage.clearToken();
-  storage.clear();
+  storage.clearAllData();
   
   if (tray) {
     tray.destroy();
@@ -318,15 +300,6 @@ ipcMain.on('login-failed', (event, error) => {
 app.whenReady().then(() => {
 
     console.log("5 - APP READY");
-
-    // Instantiate Storage AFTER app is ready
-    // (electron-store internally calls app.getPath('userData') which requires ready state)
-    try {
-        storage = new Storage();
-        console.log("5.5 - storage instantiated");
-    } catch (err) {
-        console.error("ERROR instantiating Storage:", err);
-    }
 
     try {
 

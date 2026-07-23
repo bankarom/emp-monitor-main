@@ -1,6 +1,5 @@
 const { execSync } = require('child_process');
 const logger = require('../utils/logger');
-const { uIOhook } = require('uiohook-napi');
 
 class ActivityTracker {
   constructor(config, token, userInfo) {
@@ -60,32 +59,37 @@ class ActivityTracker {
   // Get active window information
   getActiveWindow() {
     try {
-      if (!this.activeWindowExePath) {
-        const path = require('path');
-        const isPackaged = __dirname.includes('app.asar');
-        let basePath = isPackaged ? path.join(process.resourcesPath, 'resources') : path.join(__dirname, '..', '..', 'resources');
-        this.activeWindowExePath = path.join(basePath, 'ActiveWindow.exe');
-      }
-
-      const { execFile } = require('child_process');
-      execFile(this.activeWindowExePath, { timeout: 1000 }, (err, stdout) => {
-        if (!err && stdout) {
-          let [proc, title] = stdout.toString().trim().split('|||');
-          let finalProc = (proc || '').trim();
-          let finalTitle = (title || '').trim();
-          
-          if (!finalTitle && finalProc) {
-            finalTitle = this.getFriendlyAppName(finalProc);
-          }
-          
-          this._latestWindow = { proc: finalProc, title: finalTitle };
-        }
-      });
+      const ps = `
+$code = @'
+using System; using System.Runtime.InteropServices; using System.Text;
+public class W { 
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr h,StringBuilder s,int n);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);
+}
+'@
+Add-Type -TypeDefinition $code
+$h=[W]::GetForegroundWindow()
+$s=New-Object System.Text.StringBuilder 512
+[W]::GetWindowText($h,$s,512)|Out-Null
+$pid=0;[W]::GetWindowThreadProcessId($h,[ref]$pid)|Out-Null
+$p=Get-Process -Id $pid -EA SilentlyContinue
+Write-Output "$($p.ProcessName)|||$($s.ToString())"
+      `.replace(/\n/g, ' ');
       
-      return this._latestWindow || { proc: 'Unknown', title: 'Desktop' };
+      const out = execSync(`powershell -NoProfile -NonInteractive -Command "${ps}"`, {
+        timeout: 5000,
+        stdio: ['ignore', 'pipe', 'ignore']
+      }).toString().trim();
+      
+      const [proc, title] = out.split('|||');
+      return { 
+        proc: (proc || '').trim(), 
+        title: (title || '').trim() 
+      };
     } catch (err) {
       logger.error('Error getting active window:', err.message);
-      return this._latestWindow || { proc: 'Unknown', title: 'Desktop' };
+      return { proc: '', title: '' };
     }
   }
 
@@ -116,14 +120,26 @@ class ActivityTracker {
     return null;
   }
 
-  // Track mouse activity
+  // Track mouse activity (simplified - uses Windows hooks in production)
   trackMouseActivity() {
-    // Handled via uIOhook events, nothing to do here per second
+    // In a real implementation, you'd use Windows hooks via native module
+    // For now, we'll simulate with random activity for demonstration
+    // In production, use: node-mouse-hook or similar native module
+    
+    const clicks = Math.floor(Math.random() * 5);
+    const movements = Math.floor(Math.random() * 20);
+    
+    this.clicksCount += clicks;
+    this.movementsCount += movements;
   }
 
-  // Track keyboard activity
+  // Track keyboard activity (simplified)
   trackKeyboardActivity() {
-    // Handled via uIOhook events, nothing to do here per second
+    // In production, use Windows keyboard hooks
+    // For now, simulate with random activity
+    
+    const keys = Math.floor(Math.random() * 10);
+    this.keysCount += keys;
   }
 
   // Update per-second activity arrays
@@ -229,11 +245,6 @@ class ActivityTracker {
           end: this.appUsageStart + duration,
           keystrokes: this.currentKeystrokes
         });
-        
-        // Reset for next interval so it doesn't overlap
-        this.appStartTime = Date.now();
-        this.appUsageStart = 0;
-        this.currentKeystrokes = '';
       }
     }
     
@@ -293,47 +304,32 @@ class ActivityTracker {
   }
 
   start() {
-    if (this.isRunning) return;
-    this.isRunning = true;
-    this.sessionStartTime = new Date();
-    
-    logger.info('Activity tracker started');
+    if (this.isRunning) {
+      logger.warn('Activity tracker already running');
+      return;
+    }
 
-    // Setup uIOhook events
-    uIOhook.on('keydown', (e) => { this.keysCount++; });
-    uIOhook.on('mousedown', (e) => { this.clicksCount++; });
-    uIOhook.on('mousemove', (e) => { this.movementsCount++; });
-    uIOhook.start();
+    this.isRunning = true;
+    logger.info('Starting activity tracker');
     
-    // Start sampling interval
+    // Sample activity every 4 seconds
     this.interval = setInterval(() => {
       this.sampleActivity();
     }, this.config.ACTIVITY_SAMPLE_INTERVAL);
   }
 
-  // Stop tracking
   stop() {
-    if (!this.isRunning) return;
+    if (!this.isRunning) {
+      return;
+    }
+
     this.isRunning = false;
+    logger.info('Stopping activity tracker');
     
     if (this.interval) {
       clearInterval(this.interval);
       this.interval = null;
     }
-    
-    uIOhook.stop();
-    
-    // Finalize current app usage
-    if (this.currentApp) {
-      this.appUsage.push({
-        appName: this.currentApp.appName,
-        url: this.currentApp.url || null,
-        startTime: this.currentApp.startTime,
-        endTime: new Date().toISOString()
-      });
-    }
-    
-    logger.info('Activity tracker stopped');
   }
 }
 

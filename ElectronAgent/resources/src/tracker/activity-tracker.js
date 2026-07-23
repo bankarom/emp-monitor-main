@@ -60,29 +60,32 @@ class ActivityTracker {
   // Get active window information
   getActiveWindow() {
     try {
-      const psScript = `
-Add-Type -TypeDefinition "using System;using System.Runtime.InteropServices;using System.Text;public class W{[DllImport(""user32.dll"")]public static extern IntPtr GetForegroundWindow();[DllImport(""user32.dll"")]public static extern int GetWindowText(IntPtr h,StringBuilder s,int n);[DllImport(""user32.dll"")]public static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);}"
-$h=[W]::GetForegroundWindow()
-$s=New-Object System.Text.StringBuilder 512
-[W]::GetWindowText($h,$s,512)|Out-Null
-$procId=0;[W]::GetWindowThreadProcessId($h,[ref]$procId)|Out-Null
-$p=Get-Process -Id $procId -EA SilentlyContinue
-Write-Output "$($p.ProcessName)|||$($s.ToString())"
-`;
-      const b64 = Buffer.from(psScript, 'utf16le').toString('base64');
-      const out = execSync(`powershell -NoProfile -NonInteractive -EncodedCommand ${b64}`, {
-        timeout: 5000,
-        stdio: ['ignore', 'pipe', 'ignore']
-      }).toString().trim();
+      if (!this.activeWindowExePath) {
+        const path = require('path');
+        const isPackaged = __dirname.includes('app.asar');
+        let basePath = isPackaged ? path.join(process.resourcesPath, 'resources') : path.join(__dirname, '..', '..', 'resources');
+        this.activeWindowExePath = path.join(basePath, 'ActiveWindow.exe');
+      }
+
+      const { execFile } = require('child_process');
+      execFile(this.activeWindowExePath, { timeout: 1000 }, (err, stdout) => {
+        if (!err && stdout) {
+          let [proc, title] = stdout.toString().trim().split('|||');
+          let finalProc = (proc || '').trim();
+          let finalTitle = (title || '').trim();
+          
+          if (!finalTitle && finalProc) {
+            finalTitle = this.getFriendlyAppName(finalProc);
+          }
+          
+          this._latestWindow = { proc: finalProc, title: finalTitle };
+        }
+      });
       
-      let [proc, title] = out.split('|||');
-      return { 
-        proc: (proc || '').trim(), 
-        title: (title || '').trim() 
-      };
+      return this._latestWindow || { proc: 'Unknown', title: 'Desktop' };
     } catch (err) {
       logger.error('Error getting active window:', err.message);
-      return { proc: '', title: '' };
+      return this._latestWindow || { proc: 'Unknown', title: 'Desktop' };
     }
   }
 

@@ -130,7 +130,7 @@ class DashboardModel {
 
     //TODO: MERGE getOnlineEmp() and getOfflineEmp() into single function
     getOnlineEmp(organization_id, manager_id, date, to_assigned_role) {
-        const from_date = moment().subtract(15, 'minutes').format('YYYY-MM-DD HH:mm:ss');
+        const from_date = moment().subtract(2, 'minutes').format('YYYY-MM-DD HH:mm:ss');
         const to_date = moment().format('YYYY-MM-DD HH:mm:ss');
         let query = `
             SELECT

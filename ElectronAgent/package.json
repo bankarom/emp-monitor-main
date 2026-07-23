@@ -34,9 +34,11 @@
       "createDesktopShortcut": true,
       "runAfterFinish": true
     },
+    "extraResources": [
+      "resources/**/*"
+    ],
     "files": [
       "src/**/*",
-      "resources/**/*",
       "main.js",
       "package.json"
     ]

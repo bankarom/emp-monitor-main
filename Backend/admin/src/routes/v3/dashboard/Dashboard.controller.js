@@ -143,7 +143,7 @@ class DashboardController {
                         `employees-status-${organization_id}`,
                         Date.now(),
                         'EX',
-                        60
+                        2
                     );
                 }
             }

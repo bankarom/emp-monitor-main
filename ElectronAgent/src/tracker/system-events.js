@@ -12,106 +12,15 @@ class SystemEvents {
     this.eventBuffer = [];
   }
 
-  // Detect USB insertion/removal
-  detectUSBEvents() {
-    try {
-      // PowerShell command to get recent USB events
-      const ps = `
-Get-WinEvent -FilterHashtable @{LogName='System'; ProviderName='Microsoft-Windows-DriverFrameworks-UserMode'} -MaxEvents 10 | 
-Where-Object {$_.TimeCreated -gt (Get-Date).AddMinutes(-5)} | 
-Select-Object TimeCreated, Id, Message | 
-ConvertTo-Json
-      `.replace(/\n/g, ' ');
-      
-      const output = execSync(`powershell -NoProfile -NonInteractive -Command "${ps}"`, {
-        timeout: 5000,
-        stdio: ['ignore', 'pipe', 'ignore']
-      }).toString();
-      
-      if (output && output !== '[]') {
-        logger.debug('USB events detected:', output);
-        return {
-          type: 'USB',
-          data: output,
-          timestamp: new Date().toISOString()
-        };
-      }
-    } catch (err) {
-      // No events or permission issue - ignore
-    }
-    return null;
-  }
-
-  // Detect print events
-  detectPrintEvents() {
-    try {
-      const ps = `
-Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-PrintService/Operational'; Id=307} -MaxEvents 10 | 
-Where-Object {$_.TimeCreated -gt (Get-Date).AddMinutes(-5)} | 
-Select-Object TimeCreated, Message | 
-ConvertTo-Json
-      `.replace(/\n/g, ' ');
-      
-      const output = execSync(`powershell -NoProfile -NonInteractive -Command "${ps}"`, {
-        timeout: 5000,
-        stdio: ['ignore', 'pipe', 'ignore']
-      }).toString();
-      
-      if (output && output !== '[]') {
-        logger.debug('Print events detected:', output);
-        return {
-          type: 'PRINT',
-          data: output,
-          timestamp: new Date().toISOString()
-        };
-      }
-    } catch (err) {
-      // No events or permission issue - ignore
-    }
-    return null;
-  }
-
-  // Detect screen lock/unlock
-  detectScreenLockEvents() {
-    try {
-      const ps = `
-Get-WinEvent -FilterHashtable @{LogName='Security'; Id=4800,4801} -MaxEvents 10 | 
-Where-Object {$_.TimeCreated -gt (Get-Date).AddMinutes(-5)} | 
-Select-Object TimeCreated, Id, Message | 
-ConvertTo-Json
-      `.replace(/\n/g, ' ');
-      
-      const output = execSync(`powershell -NoProfile -NonInteractive -Command "${ps}"`, {
-        timeout: 5000,
-        stdio: ['ignore', 'pipe', 'ignore']
-      }).toString();
-      
-      if (output && output !== '[]') {
-        logger.debug('Screen lock events detected:', output);
-        return {
-          type: 'SCREEN_LOCK',
-          data: output,
-          timestamp: new Date().toISOString()
-        };
-      }
-    } catch (err) {
-      // No events or permission issue - ignore
-    }
-    return null;
-  }
-
   // Collect all system events
   collectEvents() {
     const events = [];
     
-    const usbEvent = this.detectUSBEvents();
-    if (usbEvent) events.push(usbEvent);
+    // We removed PowerShell-based USB/Print logging because it blocked the event loop.
+    // If USB/Print logging is strictly required later, we can add a native Node.js C++ addon.
     
-    const printEvent = this.detectPrintEvents();
-    if (printEvent) events.push(printEvent);
-    
-    const lockEvent = this.detectScreenLockEvents();
-    if (lockEvent) events.push(lockEvent);
+    // Screen lock events are now handled asynchronously by Electron's powerMonitor in main.js
+    // or we can just skip polling them here and let the agent rely on idle-detector.
     
     const clipboardEvent = this.detectClipboardEvents();
     if (clipboardEvent) events.push(clipboardEvent);
